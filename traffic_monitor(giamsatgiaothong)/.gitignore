@@ -1,0 +1,20 @@
+# Ignore virtual environment
+venv/
+
+# Ignore Roboflow datasets
+*-1/
+*.jpg
+*.jpeg
+*.png
+*.txt
+*.yaml
+*.pt
+
+# Ignore logs, outputs
+logs/
+output/
+
+# Ignore VSCode settings (optional)
+.vscode/
+__pycache__/
+*.pyc

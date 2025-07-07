@@ -1,7 +1,7 @@
 from ultralytics import YOLO
 import cv2
 
-model = YOLO("weights/vehicle_best.pt")
+model = YOLO("weights/traffic_light_best.pt")
 
 cap = cv2.VideoCapture("input/videos/test_red_light.mp4")
 while True:
@@ -11,7 +11,7 @@ while True:
     results = model(frame)
     annotated = results[0].plot()
 
-    cv2.imshow("Vehicle Detection", annotated)
+    cv2.imshow("Traffic Light Detection", annotated)
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 

@@ -1,1 +1,0 @@
-DATASET_PATH = r"C:\vs code\hoctap\hoc\KNN\dataset"

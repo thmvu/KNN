@@ -1,19 +1,12 @@
 from ultralytics import YOLO
-import cv2
 
-model = YOLO("weights/vehicle_best.pt")
+def load_model():
+    return YOLO("weights/best_1.pt")  # model nhận diện xe
 
-cap = cv2.VideoCapture("input/videos/test_red_light.mp4")
-while True:
-    ret, frame = cap.read()
-    if not ret: break
+def detect(model, frame):
+    results = model(frame, conf=0.5, iou=0.5)
 
-    results = model(frame)
-    annotated = results[0].plot()
+    num_detections = len(results[0].boxes)
+    print(f"[🚗 DETECT_VEHICLE] Số lượng object phát hiện: {num_detections}")
 
-    cv2.imshow("Vehicle Detection", annotated)
-    if cv2.waitKey(1) & 0xFF == ord("q"):
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+    return results[0].plot(conf=True)

@@ -10,6 +10,7 @@ venv/
 *.yaml
 *.pt
 
+
 # Ignore logs, outputs
 logs/
 output/
@@ -18,3 +19,5 @@ output/
 .vscode/
 __pycache__/
 *.pyc
+*.json
+

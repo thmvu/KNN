@@ -69,10 +69,10 @@ def draw_stop_lines(frame, output_path):
             temp_lines.clear()
             print("🔁 Reset các đoạn vẽ tạm.")
         elif key == ord('i'):
-            current_light_id = input("💡 Nhập ID đèn giao thông (VD: 0 hoặc 1,2): ").strip()
+            current_light_id = input("💡 Nhập ID đèn giao thông (VD: left hoặc left,right): ").strip()
             if temp_lines:
                 stop_lines.append({
-                    "light_ids": list(map(int, current_light_id.split(","))),
+                    "light_ids": [id.strip() for id in current_light_id.split(",")],
                     "points": [list(pt) for line in temp_lines for pt in line]
                 })
                 print(f"✅ Gán {len(temp_lines)} đoạn cho light_id: {current_light_id}")

@@ -1,87 +1,117 @@
 import cv2
 import json
 import os
+import sys
 
-stop_lines = []  # Danh sách vạch dừng [{"line": [(x1, y1), (x2, y2)], "light_ids": ["0", "1"]}]
+# Biến toàn cục cho vẽ
+stop_lines = []
+temp_lines = []
+start_point = None
 drawing = False
-current_line = []
-current_light_ids = []
+current_light_id = ""
 
-def click_event(event, x, y, flags, param):
-    global drawing, current_line, stop_lines, current_light_ids
+def draw_stop_lines(frame, output_path):
+    """
+    Hàm vẽ stop line trên một frame (thường là frame đầu video),
+    cho phép gán với nhiều light_id và lưu vào file JSON.
+    """
+    global stop_lines, temp_lines, start_point, drawing, current_light_id
+    stop_lines = []
+    temp_lines = []
+    start_point = None
+    drawing = False
+    current_light_id = ""
 
-    if event == cv2.EVENT_LBUTTONDOWN:
-        if not drawing:
-            current_line = [(x, y)]
+    clone = frame.copy()
+
+    def mouse_callback(event, x, y, flags, param):
+        global drawing, start_point
+        if event == cv2.EVENT_LBUTTONDOWN:
             drawing = True
-        else:
-            current_line.append((x, y))
+            start_point = (x, y)
+        elif event == cv2.EVENT_LBUTTONUP:
             drawing = False
-            stop_lines.append({
-                "line": current_line.copy(),
-                "light_ids": current_light_ids.copy() if current_light_ids else []
-            })
-            print(f"[+] Đã lưu vạch với đèn: {current_light_ids} - {current_line}")
-            current_line = []
+            end_point = (x, y)
+            temp_lines.append((start_point, end_point))
+            print(f"🖍️ Vẽ: {start_point} → {end_point}")
 
-def draw_stop_lines(frame, stop_line_file):
-    global current_light_ids
+    cv2.namedWindow("Draw Stop Lines")
+    cv2.setMouseCallback("Draw Stop Lines", mouse_callback)
 
-    window_name = 'Draw Stop Line'
-    cv2.namedWindow(window_name)
-    cv2.setMouseCallback(window_name, click_event)
+    print("\n🚦 *** HƯỚNG DẪN VẼ STOP LINE ***")
+    print(" - Click trái để vẽ từng đoạn thẳng.")
+    print(" - Nhấn 'i' để nhập light_id và gán các đoạn vừa vẽ.")
+    print(" - Nhấn 'u' để undo đoạn vừa vẽ.")
+    print(" - Nhấn 'r' để reset các đoạn vẽ tạm.")
+    print(" - Nhấn 's' để lưu và thoát.")
+    print(" - Nhấn 'ESC' để thoát KHÔNG lưu.\n")
 
-    try:
-        print("=== Vẽ vạch dừng ===")
-        print("Phím i: Nhập ID đèn giao thông")
-        print("Phím s: Lưu stop_line.json")
-        print("Phím q: Thoát")
+    while True:
+        temp = clone.copy()
+        # Vẽ các đoạn tạm thời đang vẽ
+        for pt1, pt2 in temp_lines:
+            cv2.line(temp, pt1, pt2, (0, 255, 0), 2)
+        # Vẽ các đoạn đã gán vào stop_lines
+        for line in stop_lines:
+            pts = line["points"]
+            for i in range(0, len(pts), 2):
+                pt1, pt2 = tuple(pts[i]), tuple(pts[i+1])
+                cv2.line(temp, pt1, pt2, (255, 0, 0), 2)
+        cv2.imshow("Draw Stop Lines", temp)
 
-        while True:
-            temp_frame = frame.copy()
-            for stop in stop_lines:
-                cv2.line(temp_frame, tuple(stop["line"][0]), tuple(stop["line"][1]), (0, 0, 255), 2)
-                label = ','.join(stop.get("light_ids", []))
-                cv2.putText(temp_frame, label, tuple(stop["line"][0]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+        key = cv2.waitKey(1) & 0xFF
 
-            if len(current_line) == 1:
-                cv2.circle(temp_frame, current_line[0], 5, (255, 0, 0), -1)
+        if key == ord('u'):
+            if temp_lines:
+                temp_lines.pop()
+                print("↩️  Đã undo.")
+        elif key == ord('r'):
+            temp_lines.clear()
+            print("🔁 Reset các đoạn vẽ tạm.")
+        elif key == ord('i'):
+            current_light_id = input("💡 Nhập ID đèn giao thông (VD: 0 hoặc 1,2): ").strip()
+            if temp_lines:
+                stop_lines.append({
+                    "light_ids": list(map(int, current_light_id.split(","))),
+                    "points": [list(pt) for line in temp_lines for pt in line]
+                })
+                print(f"✅ Gán {len(temp_lines)} đoạn cho light_id: {current_light_id}")
+                temp_lines.clear()
+            else:
+                print("⚠️  Chưa có đoạn nào để gán.")
+        elif key == ord('s'):
+            with open(output_path, "w") as f:
+                json.dump(stop_lines, f, indent=4)
+            print(f"💾 Đã lưu stop lines vào {output_path}")
+            break
+        elif key == 27:
+            print("❌ Thoát KHÔNG lưu.")
+            break
 
-            cv2.imshow(window_name, temp_frame)
-            key = cv2.waitKey(1) & 0xFF
+    cv2.destroyAllWindows()
 
-            if key == ord('i'):
-                ids = input("Nhập ID các đèn (cách nhau bằng dấu phẩy): ").strip()
-                current_light_ids = [id.strip() for id in ids.split(",") if id.strip()]
-                print(f"[~] Sử dụng light_ids: {current_light_ids}")
-            elif key == ord('s'):
-                with open(stop_line_file, 'w') as f:
-                    json.dump(stop_lines, f, indent=2)
-                print(f"[💾] Đã lưu {len(stop_lines)} vạch vào {stop_line_file}")
-            elif key == ord('q'):
-                break
 
-        cv2.destroyWindow(window_name)
-    except Exception as e:
-        print(f"[Lỗi] {e}")
-        cv2.destroyWindow(window_name)
+def load_stop_lines(path):
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return json.load(f)
+    return []
 
-def load_stop_lines(file):
-    if not os.path.exists(file):
-        print(f"[!] Không tìm thấy file: {file}")
-        return []
+# Nếu chạy trực tiếp file này: `python mark_line.py video.mp4`
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("⚠️  Cách dùng: python mark_line.py <video_path>")
+        sys.exit(1)
 
-    try:
-        with open(file, 'r') as f:
-            lines = json.load(f)
-            # Đảm bảo đúng format: mỗi phần tử là dict có "line" (list 2 điểm) và "light_ids" (list)
-            valid_lines = []
-            for item in lines:
-                if "line" in item and isinstance(item["line"], list) and len(item["line"]) == 2:
-                    item["light_ids"] = item.get("light_ids", [])
-                    valid_lines.append(item)
-            print(f"[✅] Đã load {len(valid_lines)} vạch dừng từ {file}")
-            return valid_lines
-    except Exception as e:
-        print(f"[Lỗi khi load stop_line.json] {e}")
-        return []
+    video_path = sys.argv[1]
+    cap = cv2.VideoCapture(video_path)
+    ret, frame = cap.read()
+    cap.release()
+
+    if not ret:
+        print("❌ Không thể đọc frame đầu từ video.")
+        sys.exit(1)
+
+    output_json = os.path.join("stopline", os.path.splitext(os.path.basename(video_path))[0] + "_stopline.json")
+    os.makedirs("stopline", exist_ok=True)
+    draw_stop_lines(frame, output_json)

@@ -2,53 +2,62 @@ from ultralytics import YOLO
 import cv2
 
 def load_model():
-    return YOLO("weights/best_2.pt")  # model nhận diện đèn
+    return YOLO("weights/best_2.pt")  # model đèn giao thông
 
-def detect(model, frame):
-    results = model(frame, conf=0.5, iou=0.5)[0]
+def detect(model, frame, conf_thresh=0.5, iou_thresh=0.5):
+    results = model(frame, conf=conf_thresh, iou=iou_thresh)[0]
 
     detections = []
-    boxes = results.boxes
-    print(f"[🚦 DETECT_LIGHT] Số lượng object phát hiện: {len(boxes)}")
+    
+    # Sửa đúng theo class bạn print được
+    status_map = {
+        0: "green",
+        1: "off",       # nếu không dùng thì bỏ qua
+        2: "red",
+        3: "yellow"
+    }
 
-    status_map = {0: "red", 1: "green", 2: "yellow"}  # ánh xạ class_id -> trạng thái đèn
+    if results.boxes is None:
+        return []
 
-    for idx, (box, cls_id, conf) in enumerate(zip(boxes.xyxy, boxes.cls, boxes.conf)):
-        x1, y1, x2, y2 = map(int, box.tolist())
-        class_id = int(cls_id.item())
-        confidence = float(conf.item())
+    for i, box in enumerate(results.boxes):
+        x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+        class_id = int(box.cls[0])
+        conf = float(box.conf[0])
         status = status_map.get(class_id, "unknown")
 
+        # Skip if status is 'off'
+        if status == "off":
+            continue
+
+        light_id = str(i)
+
         detections.append({
-            "id": str(idx),
+            "id": light_id,
             "box": [x1, y1, x2, y2],
             "class_id": class_id,
-            "confidence": confidence,
+            "confidence": conf,
             "status": status
         })
 
     return detections
 
 def draw_lights(frame, detections):
+    color_map = {
+        "red": (0, 0, 255),
+        "yellow": (0, 255, 255),
+        "green": (0, 255, 0),
+        "unknown": (128, 128, 128)
+    }
+
     for det in detections:
         x1, y1, x2, y2 = det["box"]
         status = det["status"]
         conf = det["confidence"]
-
-        # Màu tương ứng
-        color_map = {
-            "red": (0, 0, 255),
-            "green": (0, 255, 0),
-            "yellow": (0, 255, 255),
-            "unknown": (128, 128, 128)
-        }
         color = color_map.get(status, (255, 255, 255))
 
-        # Vẽ khung
+        label = f"{det['id']} - {status} ({conf:.2f})"
         cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-
-        # Vẽ trạng thái và độ tin cậy
-        label = f"{status} ({conf:.2f})"
-        cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
-
+        cv2.putText(frame, label, (x1, y1 - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
     return frame

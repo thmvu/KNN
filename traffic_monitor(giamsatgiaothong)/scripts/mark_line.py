@@ -12,8 +12,8 @@ current_light_id = ""
 
 def draw_stop_lines(frame, output_path):
     """
-    Hàm vẽ stop line trên một frame (thường là frame đầu video),
-    cho phép gán với nhiều light_id và lưu vào file JSON.
+    Cho phép người dùng vẽ stop line thủ công và gán cho ID đèn giao thông.
+    Các line được lưu dưới dạng JSON để dùng lại cho video tương ứng.
     """
     global stop_lines, temp_lines, start_point, drawing, current_light_id
     stop_lines = []
@@ -48,15 +48,18 @@ def draw_stop_lines(frame, output_path):
 
     while True:
         temp = clone.copy()
-        # Vẽ các đoạn tạm thời đang vẽ
+
+        # Vẽ các đoạn tạm thời
         for pt1, pt2 in temp_lines:
             cv2.line(temp, pt1, pt2, (0, 255, 0), 2)
+
         # Vẽ các đoạn đã gán vào stop_lines
         for line in stop_lines:
             pts = line["points"]
             for i in range(0, len(pts), 2):
                 pt1, pt2 = tuple(pts[i]), tuple(pts[i+1])
                 cv2.line(temp, pt1, pt2, (255, 0, 0), 2)
+
         cv2.imshow("Draw Stop Lines", temp)
 
         key = cv2.waitKey(1) & 0xFF
@@ -80,9 +83,10 @@ def draw_stop_lines(frame, output_path):
             else:
                 print("⚠️  Chưa có đoạn nào để gán.")
         elif key == ord('s'):
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
             with open(output_path, "w") as f:
                 json.dump(stop_lines, f, indent=4)
-            print(f"💾 Đã lưu stop lines vào {output_path}")
+            print(f"💾 Đã lưu stop lines vào: {output_path}")
             break
         elif key == 27:
             print("❌ Thoát KHÔNG lưu.")
@@ -97,7 +101,7 @@ def load_stop_lines(path):
             return json.load(f)
     return []
 
-# Nếu chạy trực tiếp file này: `python mark_line.py video.mp4`
+# Nếu chạy độc lập file này: `python mark_line.py input/videos/your_video.mp4`
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("⚠️  Cách dùng: python mark_line.py <video_path>")
@@ -112,6 +116,6 @@ if __name__ == "__main__":
         print("❌ Không thể đọc frame đầu từ video.")
         sys.exit(1)
 
-    output_json = os.path.join("stopline", os.path.splitext(os.path.basename(video_path))[0] + "_stopline.json")
-    os.makedirs("stopline", exist_ok=True)
+    video_name = os.path.splitext(os.path.basename(video_path))[0]
+    output_json = os.path.join("stopline", f"{video_name}_stopline.json")
     draw_stop_lines(frame, output_json)

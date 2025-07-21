@@ -20,4 +20,6 @@ output/
 __pycache__/
 *.pyc
 *.json
+*.mp4
+
 

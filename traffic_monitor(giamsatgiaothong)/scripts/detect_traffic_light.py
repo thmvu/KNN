@@ -4,7 +4,7 @@ import cv2
 def load_model():
     return YOLO("weights/best_2.pt")  # model đèn giao thông
 
-def detect(model, frame, conf_thresh=0.5, iou_thresh=0.5):
+def detect(model, frame, conf_thresh=0.2, iou_thresh=0.2):
     results = model(frame, conf=conf_thresh, iou=iou_thresh)[0]
 
     detections = []

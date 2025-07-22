@@ -2,19 +2,16 @@ from ultralytics import YOLO
 import cv2
 
 def load_model():
-    return YOLO("weights/best_2.pt")  # model đèn giao thông
+    return YOLO("weights/light1.pt")  # Đường dẫn đến model YOLO đèn giao thông
 
 def detect(model, frame, conf_thresh=0.2, iou_thresh=0.2):
     results = model(frame, conf=conf_thresh, iou=iou_thresh)[0]
-
     detections = []
-    
-    # Sửa đúng theo class bạn print được
+
     status_map = {
         0: "green",
-        1: "off",       # nếu không dùng thì bỏ qua
-        2: "red",
-        3: "yellow"
+        1: "red",
+        2: "yellow"
     }
 
     if results.boxes is None:
@@ -25,10 +22,6 @@ def detect(model, frame, conf_thresh=0.2, iou_thresh=0.2):
         class_id = int(box.cls[0])
         conf = float(box.conf[0])
         status = status_map.get(class_id, "unknown")
-
-        # Skip if status is 'off'
-        if status == "off":
-            continue
 
         light_id = str(i)
 

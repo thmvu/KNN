@@ -1,11 +1,7 @@
 from ultralytics import YOLO
 
-# Load model .pt
-model = YOLO("weights/light.pt")
-
-# In ra số class
-print(f"Số class: {model.model.nc}")
-
-# In ra danh sách tên class
+model = YOLO("weights/light1.pt")
+names = model.names  # dict: {class_id: class_name}
+print(f"Số class: {len(names)}")
 print("Tên class:")
-print(model.model.names)
+print(names)

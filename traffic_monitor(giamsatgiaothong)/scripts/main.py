@@ -11,7 +11,7 @@ from mark_line import load_stop_lines, draw_stop_lines
 from violation import check_violation, draw_violation, update_violation_memory, violation_memory
 
 # ==== Đường dẫn video ====
-VIDEO_PATH = "input/videos/videoplayback.mp4"
+VIDEO_PATH = "input/videos/videoplayback3.mp4"
 VIDEO_NAME = os.path.splitext(os.path.basename(VIDEO_PATH))[0]
 
 STOPLINE_DIR = "stopline"
@@ -30,47 +30,22 @@ print("🔍 Load YOLO models...")
 vehicle_model = load_vehicle_model()
 light_model = load_light_model()
 
-# ==== Đọc video ====
+# ==== Đọc frame đầu tiên để vẽ stop line (nếu cần) ====
 cap = cv2.VideoCapture(VIDEO_PATH)
+ret, first_frame = cap.read()
 fps = cap.get(cv2.CAP_PROP_FPS)
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-WAIT_FRAMES = 30
-
-print("🔧 In ra ID các đèn giao thông để bạn gán stop line...")
-
-for i in range(WAIT_FRAMES):
-    ret, frame = cap.read()
-    if not ret:
-        break
-
-    light_detections = detect_light(light_model, frame)
-    for det in light_detections:
-        x1, y1, x2, y2 = det["box"]
-        cx = (x1 + x2) // 2
-        if cx < width // 3:
-            det["id"] = "left"
-        elif cx > 2 * width // 3:
-            det["id"] = "right"
-        else:
-            det["id"] = "center"
-
-    print(f"\n[Frame {i}]")
-    for det in light_detections:
-        print(f"  -> ID: {det['id']}, Box: {det['box']}, Status: {det['status']}")
-
 cap.release()
+
+if not ret:
+    print("❌ Không thể đọc frame đầu tiên.")
+    exit(1)
 
 # ==== Vẽ Stop Line nếu chưa có ====
 if not os.path.exists(STOPLINE_PATH):
     print(f"🖍️ Không tìm thấy {STOPLINE_PATH}, cần vẽ lại stop line...")
-    cap = cv2.VideoCapture(VIDEO_PATH)
-    ret, frame = cap.read()
-    if not ret:
-        print("❌ Không thể đọc frame đầu tiên để vẽ stop line.")
-        exit(1)
-    draw_stop_lines(frame, STOPLINE_PATH)
-    cap.release()
+    draw_stop_lines(first_frame, STOPLINE_PATH)
 
 # ==== Load Stop Line ====
 stop_lines = load_stop_lines(STOPLINE_PATH)
@@ -100,11 +75,11 @@ with open(VIOLATION_LOG, 'w', newline='') as log_file:
             x1, y1, x2, y2 = det["box"]
             cx = (x1 + x2) // 2
             if cx < width // 3:
-                det["id"] = "left"
+                det["id"] = "light_0"
             elif cx > 2 * width // 3:
-                det["id"] = "right"
+                det["id"] = "light_1"
             else:
-                det["id"] = "center"
+                det["id"] = "light_2"
 
         # --- Detect vehicle (with tracking ID) ---
         vehicle_detections = detect_vehicle(vehicle_model, frame)

@@ -82,6 +82,7 @@ fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 out = cv2.VideoWriter(OUTPUT_VIDEO_PATH, fourcc, fps, (width, height))
 
 frame_index = 0
+violated_ids = set()
 
 # ==== Ghi log CSV ====
 with open(VIOLATION_LOG, 'w', newline='') as log_file:
@@ -105,7 +106,7 @@ with open(VIOLATION_LOG, 'w', newline='') as log_file:
             else:
                 det["id"] = "center"
 
-        # --- Detect vehicle ---
+        # --- Detect vehicle (with tracking ID) ---
         vehicle_detections = detect_vehicle(vehicle_model, frame)
 
         # --- Light ID to status map ---
@@ -130,31 +131,42 @@ with open(VIOLATION_LOG, 'w', newline='') as log_file:
                 cv2.line(frame, p1, p2, color, 2)
 
         # --- Kiểm tra vi phạm ---
-        for idx, veh in enumerate(vehicle_detections):
-            x1, y1, x2, y2 = veh["box"]
-            bbox = [x1, y1, x2, y2]
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            for veh in vehicle_detections:
+                x1, y1, x2, y2 = veh["box"]
+                bbox = [x1, y1, x2, y2]
+                track_id = veh.get("id", -1)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-            for line in stop_lines:
-                for lid in line["light_ids"]:
-                    light_info = light_status_map.get(lid)
-                    if not light_info:
-                        continue
-                    status = light_info["status"]
+                if track_id in violated_ids:
+                    draw_violation(frame, bbox)
+                    continue
 
-                    for i in range(0, len(line["points"]), 2):
-                        p1 = line["points"][i]
-                        p2 = line["points"][i + 1]
-                        line_seg = [p1[0], p1[1], p2[0], p2[1]]
+                for line in stop_lines:
+                    for lid in line["light_ids"]:
+                        light_info = light_status_map.get(lid)
+                        if not light_info:
+                            continue
+                        status = light_info["status"]
 
-                        vehicle_id = f"{frame_index}_{idx}"
-                        violation_result = check_violation(vehicle_id, bbox, [line_seg], status, frame.copy(), frame_index, save_dir=VIOLATION_DIR)
-                        if violation_result:
-                            draw_violation(frame, bbox)
-                            writer.writerow([vehicle_id, frame_index, violation_result])
-                            break
+                        for i in range(0, len(line["points"]), 2):
+                            p1 = line["points"][i]
+                            p2 = line["points"][i + 1]
+                            line_seg = [p1[0], p1[1], p2[0], p2[1]]
 
-        update_violation_memory()
+                            vehicle_id = f"{track_id}"
+                            violation_result = check_violation(
+                                vehicle_id, bbox, [line_seg], status,
+                                frame.copy(), frame_index, save_dir=VIOLATION_DIR
+                            )
+                            if violation_result:
+                                draw_violation(frame, bbox)
+                                violated_ids.add(track_id)
+                                writer.writerow([vehicle_id, frame_index, violation_result])
+                                break
+
+        # ✅ Sửa lỗi: Gửi danh sách ID hiện tại vào hàm cập nhật
+        current_vehicle_ids = [veh["id"] for veh in vehicle_detections if veh["id"] != -1]
+        update_violation_memory(current_vehicle_ids)
 
         out.write(frame)
         cv2.imshow("Result", frame)
@@ -163,6 +175,7 @@ with open(VIOLATION_LOG, 'w', newline='') as log_file:
 
         frame_index += 1
 
+# === Phần kết thúc giữ nguyên ===
 cap.release()
 out.release()
 cv2.destroyAllWindows()

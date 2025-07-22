@@ -3,7 +3,7 @@ import os
 import csv
 from datetime import datetime
 
-violation_memory = {}  # {vehicle_id: {'bbox':..., 'saved': bool, 'frame': int, 'cooldown': int}}
+violation_memory = {}  # {vehicle_id: {'bbox':..., 'saved': bool, 'frame': int}}
 
 
 def point_line_distance(px, py, x1, y1, x2, y2):
@@ -30,7 +30,7 @@ def point_line_distance(px, py, x1, y1, x2, y2):
 
 
 def check_violation(vehicle_id, vehicle_bbox, stop_lines, light_status,
-                    frame, frame_number, save_dir="output/violations", threshold=25, cooldown_frames=15):
+                    frame, frame_number, save_dir="output/violations", threshold=25):
     if light_status != "red" or frame is None:
         return False
 
@@ -49,15 +49,11 @@ def check_violation(vehicle_id, vehicle_bbox, stop_lines, light_status,
                     violation_memory[vehicle_id] = {
                         'bbox': vehicle_bbox,
                         'saved': False,
-                        'frame': frame_number,
-                        'cooldown': cooldown_frames
+                        'frame': frame_number
                     }
                 else:
-                    violation_memory[vehicle_id].update({
-                        'bbox': vehicle_bbox,
-                        'frame': frame_number,
-                        'cooldown': cooldown_frames
-                    })
+                    violation_memory[vehicle_id]['bbox'] = vehicle_bbox
+                    violation_memory[vehicle_id]['frame'] = frame_number
 
                 # Lưu ảnh nếu chưa lưu
                 if not violation_memory[vehicle_id]['saved']:
@@ -98,12 +94,11 @@ def draw_violation(frame, bbox, label="VIOLATION"):
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
 
-def update_violation_memory():
+def update_violation_memory(current_vehicle_ids):
     expired_ids = []
-    for vehicle_id, data in violation_memory.items():
-        if data['cooldown'] > 0:
-            data['cooldown'] -= 1
-        else:
+    for vehicle_id in violation_memory:
+        if vehicle_id not in current_vehicle_ids:
             expired_ids.append(vehicle_id)
+
     for vid in expired_ids:
         violation_memory.pop(vid)

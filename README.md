@@ -38,9 +38,9 @@ traffic_monitoring/
 │ ├── videos/ # Video đầu ra đã xử lý
 │ ├── violations/ # Ảnh phương tiện vi phạm
 │ └── violation.csv # Log chi tiết vi phạm
-├── models/
-│ ├── vehicle.pt # Mô hình YOLOv8 phát hiện xe
-│ └── traffic_light.pt # Mô hình YOLOv8 phát hiện đèn giao thông
+├── weights/
+│ ├── best_1.pt # Mô hình YOLOv11 phát hiện xe
+│ └── light1.pt # Mô hình YOLOv11 phát hiện đèn giao thông
 ├── stop_line/
 │ └── stop_line.json # Vạch dừng gắn với đèn giao thông
 ├── mark_line.py # Công cụ vẽ vạch dừng

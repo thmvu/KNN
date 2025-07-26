@@ -11,7 +11,7 @@ from mark_line import load_stop_lines, draw_stop_lines
 from violation import check_violation, draw_violation, update_violation_memory, violation_memory
 
 # ==== Đường dẫn video ====
-VIDEO_PATH = "input/videos/videoplayback3.mp4"
+VIDEO_PATH = "input/videos/videoplayback.mp4"
 VIDEO_NAME = os.path.splitext(os.path.basename(VIDEO_PATH))[0]
 
 STOPLINE_DIR = "stopline"
@@ -59,6 +59,10 @@ out = cv2.VideoWriter(OUTPUT_VIDEO_PATH, fourcc, fps, (width, height))
 frame_index = 0
 violated_ids = set()
 
+# ==== Lưu ánh xạ đèn ====
+light_id_map = {}
+INIT_FRAMES = 30  # Số frame đầu để ổn định ID
+
 # ==== Ghi log CSV ====
 with open(VIOLATION_LOG, 'w', newline='') as log_file:
     writer = csv.writer(log_file)
@@ -71,17 +75,26 @@ with open(VIOLATION_LOG, 'w', newline='') as log_file:
 
         # --- Detect traffic light ---
         light_detections = detect_light(light_model, frame)
+
+        if frame_index < INIT_FRAMES:
+            for det in light_detections:
+                x1, y1, x2, y2 = det["box"]
+                cx = (x1 + x2) // 2
+                key = (x1, y1, x2, y2)
+                if cx < width // 3:
+                    light_id_map[key] = "light_0"
+                elif cx > 2 * width // 3:
+                    light_id_map[key] = "light_1"
+                else:
+                    light_id_map[key] = "light_2"
+
+        # Gán lại ID từ map cũ
         for det in light_detections:
             x1, y1, x2, y2 = det["box"]
-            cx = (x1 + x2) // 2
-            if cx < width // 3:
-                det["id"] = "light_0"
-            elif cx > 2 * width // 3:
-                det["id"] = "light_1"
-            else:
-                det["id"] = "light_2"
+            key = (x1, y1, x2, y2)
+            det["id"] = light_id_map.get(key, "unknown")
 
-        # --- Detect vehicle (with tracking ID) ---
+        # --- Detect vehicle ---
         vehicle_detections = detect_vehicle(vehicle_model, frame)
 
         # --- Light ID to status map ---
@@ -139,7 +152,7 @@ with open(VIOLATION_LOG, 'w', newline='') as log_file:
                                 writer.writerow([vehicle_id, frame_index, violation_result])
                                 break
 
-        # ✅ Sửa lỗi: Gửi danh sách ID hiện tại vào hàm cập nhật
+        # ✅ Cập nhật bộ nhớ vi phạm
         current_vehicle_ids = [veh["id"] for veh in vehicle_detections if veh["id"] != -1]
         update_violation_memory(current_vehicle_ids)
 
@@ -150,7 +163,7 @@ with open(VIOLATION_LOG, 'w', newline='') as log_file:
 
         frame_index += 1
 
-# === Phần kết thúc giữ nguyên ===
+# === Kết thúc ===
 cap.release()
 out.release()
 cv2.destroyAllWindows()

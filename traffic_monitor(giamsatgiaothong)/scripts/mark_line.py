@@ -72,7 +72,7 @@ def draw_stop_lines(frame, output_path):
             temp_lines.clear()
             print("🔁 Reset các đoạn vẽ tạm.")
         elif key == ord('i'):
-            current_light_id = input("💡 Nhập ID đèn giao thông (VD: left hoặc left,right): ").strip()
+            current_light_id = input("💡 Nhập ID đèn giao thông (VD: light_0 hoặc light_1,light_2): ").strip()
             if temp_lines:
                 stop_lines.append({
                     "light_ids": [id.strip() for id in current_light_id.split(",")],

@@ -50,20 +50,51 @@ if not os.path.exists(STOPLINE_PATH):
 # ==== Load Stop Line ====
 stop_lines = load_stop_lines(STOPLINE_PATH)
 
-# ==== Bắt đầu xử lý video ====
+# ==== Gán ánh xạ ID đèn trong 30 frame đầu ====
+print("👁️ Hiển thị 30 frame đầu để xác định ID đèn...") 
+light_id_map = {} 
+cap = cv2.VideoCapture(VIDEO_PATH) 
+INIT_FRAMES = 30 
+for i in range(INIT_FRAMES): 
+    ret, frame = cap.read() 
+    if not ret: 
+        break 
+
+    light_detections = detect_light(light_model, frame) 
+    for det in light_detections: 
+        x1, y1, x2, y2 = det["box"] 
+        cx = (x1 + x2) // 2 
+        key = (x1, y1, x2, y2) 
+        if cx < width // 3: 
+            light_id = "light_0" 
+        elif cx > 2 * width // 3: 
+            light_id = "light_1" 
+        else: 
+            light_id = "light_2" 
+
+        light_id_map[key] = light_id
+        print(f"[Frame {i+1}] Gán đèn tại tọa độ {key} → {light_id}")
+
+    # Vẽ và hiển thị 
+    frame = draw_lights(frame, light_detections) 
+    cv2.putText(frame, f"Frame {i+1}/{INIT_FRAMES} - Mapping ID", (10, 30), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2) 
+    cv2.imshow("Mapping Traffic Light ID", frame) 
+    key = cv2.waitKey(100)  # Tạm dừng 100ms cho mỗi frame 
+    if key == ord('q'): 
+        break 
+
+cv2.destroyWindow("Mapping Traffic Light ID")
+print("✅ Đã hoàn tất gán ID đèn sau 30 frame đầu.\n")
+
+# ==== Xử lý video chính ====
 print("▶️ Bắt đầu xử lý video...")
-cap = cv2.VideoCapture(VIDEO_PATH)
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 out = cv2.VideoWriter(OUTPUT_VIDEO_PATH, fourcc, fps, (width, height))
 
 frame_index = 0
 violated_ids = set()
 
-# ==== Lưu ánh xạ đèn ====
-light_id_map = {}
-INIT_FRAMES = 30  # Số frame đầu để ổn định ID
-
-# ==== Ghi log CSV ====
 with open(VIOLATION_LOG, 'w', newline='') as log_file:
     writer = csv.writer(log_file)
     writer.writerow(["vehicle_id", "frame_number", "filename"])
@@ -75,18 +106,6 @@ with open(VIOLATION_LOG, 'w', newline='') as log_file:
 
         # --- Detect traffic light ---
         light_detections = detect_light(light_model, frame)
-
-        if frame_index < INIT_FRAMES:
-            for det in light_detections:
-                x1, y1, x2, y2 = det["box"]
-                cx = (x1 + x2) // 2
-                key = (x1, y1, x2, y2)
-                if cx < width // 3:
-                    light_id_map[key] = "light_0"
-                elif cx > 2 * width // 3:
-                    light_id_map[key] = "light_1"
-                else:
-                    light_id_map[key] = "light_2"
 
         # Gán lại ID từ map cũ
         for det in light_detections:
@@ -150,6 +169,7 @@ with open(VIOLATION_LOG, 'w', newline='') as log_file:
                                 draw_violation(frame, bbox)
                                 violated_ids.add(track_id)
                                 writer.writerow([vehicle_id, frame_index, violation_result])
+                                print(f"🚨 Phát hiện vi phạm! Xe ID={vehicle_id} ở frame {frame_index}, ảnh: {violation_result}")
                                 break
 
         # ✅ Cập nhật bộ nhớ vi phạm

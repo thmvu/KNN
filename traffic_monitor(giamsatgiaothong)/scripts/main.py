@@ -11,7 +11,7 @@ from mark_line import load_stop_lines, draw_stop_lines
 from violation import check_violation, draw_violation, update_violation_memory, violation_memory
 
 # ==== Đường dẫn video ====
-VIDEO_PATH = "input/videos/videoplayback.mp4"
+VIDEO_PATH = "input/videos/videoplayback3.mp4"
 VIDEO_NAME = os.path.splitext(os.path.basename(VIDEO_PATH))[0]
 
 STOPLINE_DIR = "stopline"

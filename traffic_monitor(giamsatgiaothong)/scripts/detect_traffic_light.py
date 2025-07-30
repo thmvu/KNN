@@ -26,9 +26,9 @@ def detect(model, frame, conf_thresh=0.2, iou_thresh=0.2):
         light_id = str(i)
 
         detections.append({
-            "x": [x1, y1, x2, y2],
-            "claid": light_id,
-            "boss_id": class_id,
+            "box": [x1, y1, x2, y2],        # ✅ Sửa "x" → "box"
+            "id": light_id,                 # ✅ Sửa "claid" → "id"
+            "class_id": class_id,           # ✅ Sửa "boss_id" → "class_id"
             "confidence": conf,
             "status": status
         })
